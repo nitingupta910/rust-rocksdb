@@ -20,6 +20,7 @@ use ffi_util::opt_bytes_to_ptr;
 
 use libc::{self, c_char, c_int, c_uchar, c_void, size_t};
 use std::collections::BTreeMap;
+use std::ffi::CStr;
 use std::ffi::CString;
 use std::fmt;
 use std::fs;
@@ -976,6 +977,30 @@ impl DB {
                                           start.map_or(0, |s| s.len()) as size_t,
                                           opt_bytes_to_ptr(end),
                                           end.map_or(0, |e| e.len()) as size_t);
+        }
+    }
+
+    pub fn property_value(&self, propname: &str) -> Option<String> {
+        unsafe {
+            let prop: *mut c_char;
+            let c_propname = CString::new(propname).unwrap();
+            prop = ffi::rocksdb_property_value(self.inner, c_propname.as_ptr());
+            if prop.is_null() {
+                return None;
+            }
+            Some(CStr::from_ptr(prop).to_string_lossy().into_owned())
+        }
+    }
+
+    pub fn property_value_cf(&self, cf: ColumnFamily, propname: &str) -> Option<String> {
+        unsafe {
+            let prop: *mut c_char;
+            let c_propname = CString::new(propname).unwrap();
+            prop = ffi::rocksdb_property_value_cf(self.inner, cf.inner, c_propname.as_ptr());
+            if prop.is_null() {
+                return None;
+            }
+            Some(CStr::from_ptr(prop).to_string_lossy().into_owned())
         }
     }
 }
