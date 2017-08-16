@@ -139,6 +139,14 @@ pub struct Snapshot<'a> {
 ///     iter.next();
 /// }
 ///
+/// // Reverse iteration from key
+/// // Note, use seek_for_prev when reversing because if this key doesn't exist,
+/// // this will make the iterator start from the previous key rather than the next.
+/// iter.seek_for_prev(b"my key");
+/// while iter.valid() {
+///     println!("Saw {:?} {:?}", iter.key(), iter.value());
+///     iter.prev();
+/// }
 /// ```
 pub struct DBRawIterator {
     inner: *mut ffi::rocksdb_iterator_t,
@@ -317,9 +325,6 @@ impl DBRawIterator {
         }
     }
 
-    /*
-    SeekForPrev was added in RocksDB 4.13 but not implemented in the C API until RocksDB 5.0
-
     /// Seeks to the specified key, or the first key that lexicographically precedes it.
     ///
     /// Like ``.seek()`` this method will attempt to seek to the specified key.
@@ -344,9 +349,12 @@ impl DBRawIterator {
     ///    // There are no keys in the database
     /// }
     pub fn seek_for_prev(&mut self, key: &[u8]) {
-        unsafe { ffi::rocksdb_iter_seek_for_prev(self.inner, key.as_ptr() as *const c_char, key.len() as size_t); }
+        unsafe {
+            ffi::rocksdb_iter_seek_for_prev(self.inner,
+                                            key.as_ptr() as *const c_char,
+                                            key.len() as size_t);
+        }
     }
-*/
 
     /// Seeks to the next key.
     ///
