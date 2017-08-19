@@ -17,7 +17,10 @@ fn link(name: &str, bundled: bool) {
 
 fn fail_on_empty_directory(name: &str) {
     if fs::read_dir(name).unwrap().count() == 0 {
-        println!("The `{}` directory is empty, did you forget to pull the submodules?", name);
+        println!(
+            "The `{}` directory is empty, did you forget to pull the submodules?",
+            name
+        );
         println!("Try `git submodule update --init --recursive`");
         panic!();
     }
@@ -27,7 +30,7 @@ fn build_rocksdb() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=rocksdb/");
 
-    let mut config = gcc::Config::new();
+    let mut config = gcc::Build::new();
     config.include("rocksdb/include/");
     config.include("rocksdb/");
     config.include("rocksdb/third-party/gtest-1.7.0/fused-src/");
@@ -43,7 +46,8 @@ fn build_rocksdb() {
         .collect::<Vec<&'static str>>();
 
     // We have a pregenerated a version of build_version.cc in the local directory
-    lib_sources = lib_sources.iter()
+    lib_sources = lib_sources
+        .iter()
         .cloned()
         .filter(|file| *file != "util/build_version.cc")
         .collect::<Vec<&'static str>>();
@@ -71,7 +75,8 @@ fn build_rocksdb() {
         config.define("OS_WIN", Some("1"));
 
         // Remove POSIX-specific sources
-        lib_sources = lib_sources.iter()
+        lib_sources = lib_sources
+            .iter()
             .cloned()
             .filter(|file| match *file {
                 "port/port_posix.cc" |
@@ -107,7 +112,7 @@ fn build_rocksdb() {
 }
 
 fn build_snappy() {
-    let mut config = gcc::Config::new();
+    let mut config = gcc::Build::new();
     config.include("snappy/");
     config.include(".");
 

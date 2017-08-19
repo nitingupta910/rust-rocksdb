@@ -146,9 +146,10 @@ impl Options {
 
     pub fn optimize_level_style_compaction(&mut self, memtable_memory_budget: usize) {
         unsafe {
-            ffi::rocksdb_options_optimize_level_style_compaction(self.inner,
-                                                                 memtable_memory_budget as
-                                                                 uint64_t);
+            ffi::rocksdb_options_optimize_level_style_compaction(
+                self.inner,
+                memtable_memory_budget as uint64_t,
+            );
         }
     }
 
@@ -215,30 +216,35 @@ impl Options {
     pub fn set_compression_per_level(&mut self, level_types: &[DBCompressionType]) {
         unsafe {
             let level_types: Vec<_> = level_types.iter().map(|&t| t as c_int).collect();
-            ffi::rocksdb_options_set_compression_per_level(self.inner,
-                                                           level_types.as_ptr(),
-                                                           level_types.len() as size_t)
+            ffi::rocksdb_options_set_compression_per_level(
+                self.inner,
+                level_types.as_ptr(),
+                level_types.len() as size_t,
+            )
         }
     }
 
     pub fn set_merge_operator(&mut self, name: &str, merge_fn: MergeFn) {
         let cb = Box::new(MergeOperatorCallback {
-                              name: CString::new(name.as_bytes()).unwrap(),
-                              merge_fn: merge_fn,
-                          });
+            name: CString::new(name.as_bytes()).unwrap(),
+            merge_fn: merge_fn,
+        });
 
         unsafe {
-            let mo = ffi::rocksdb_mergeoperator_create(mem::transmute(cb),
-                                                       Some(merge_operator::destructor_callback),
-                                                       Some(full_merge_callback),
-                                                       Some(partial_merge_callback),
-                                                       None,
-                                                       Some(merge_operator::name_callback));
+            let mo = ffi::rocksdb_mergeoperator_create(
+                mem::transmute(cb),
+                Some(merge_operator::destructor_callback),
+                Some(full_merge_callback),
+                Some(partial_merge_callback),
+                None,
+                Some(merge_operator::name_callback),
+            );
             ffi::rocksdb_options_set_merge_operator(self.inner, mo);
         }
     }
 
-    #[deprecated(since="0.5.0", note="add_merge_operator has been renamed to set_merge_operator")]
+    #[deprecated(since = "0.5.0",
+                 note = "add_merge_operator has been renamed to set_merge_operator")]
     pub fn add_merge_operator(&mut self, name: &str, merge_fn: MergeFn) {
         self.set_merge_operator(name, merge_fn);
     }
@@ -254,18 +260,21 @@ impl Options {
     /// If multi-threaded compaction is used, `filter_fn` may be called multiple times
     /// simultaneously.
     pub fn set_compaction_filter<F>(&mut self, name: &str, filter_fn: F)
-        where F: CompactionFilterFn + Send + 'static
+    where
+        F: CompactionFilterFn + Send + 'static,
     {
         let cb = Box::new(CompactionFilterCallback {
-                              name: CString::new(name.as_bytes()).unwrap(),
-                              filter_fn: filter_fn,
-                          });
+            name: CString::new(name.as_bytes()).unwrap(),
+            filter_fn: filter_fn,
+        });
 
         unsafe {
-            let cf = ffi::rocksdb_compactionfilter_create(mem::transmute(cb),
-                                                          Some(compaction_filter::destructor_callback::<F>),
-                                                          Some(filter_callback::<F>),
-                                                          Some(compaction_filter::name_callback::<F>));
+            let cf = ffi::rocksdb_compactionfilter_create(
+                mem::transmute(cb),
+                Some(compaction_filter::destructor_callback::<F>),
+                Some(filter_callback::<F>),
+                Some(compaction_filter::name_callback::<F>),
+            );
             ffi::rocksdb_options_set_compaction_filter(self.inner, cf);
         }
     }
@@ -278,15 +287,17 @@ impl Options {
     /// previous open calls on the same DB.
     pub fn set_comparator(&mut self, name: &str, compare_fn: CompareFn) {
         let cb = Box::new(ComparatorCallback {
-                              name: CString::new(name.as_bytes()).unwrap(),
-                              f: compare_fn,
-                          });
+            name: CString::new(name.as_bytes()).unwrap(),
+            f: compare_fn,
+        });
 
         unsafe {
-            let cmp = ffi::rocksdb_comparator_create(mem::transmute(cb),
-                                                     Some(comparator::destructor_callback),
-                                                     Some(comparator::compare_callback),
-                                                     Some(comparator::name_callback));
+            let cmp = ffi::rocksdb_comparator_create(
+                mem::transmute(cb),
+                Some(comparator::destructor_callback),
+                Some(comparator::compare_callback),
+                Some(comparator::name_callback),
+            );
             ffi::rocksdb_options_set_comparator(self.inner, cmp);
         }
     }
@@ -406,10 +417,6 @@ impl Options {
         }
     }
 
-    pub fn set_disable_data_sync(&mut self, disable: bool) {
-        unsafe { ffi::rocksdb_options_set_disable_data_sync(self.inner, disable as c_int) }
-    }
-
     /// Enable direct I/O mode for reading
     /// they may or may not improve performance depending on the use case
     ///
@@ -454,8 +461,10 @@ impl Options {
     /// ```
     pub fn set_use_direct_io_for_flush_and_compaction(&mut self, enabled: bool) {
         unsafe {
-            ffi::rocksdb_options_set_use_direct_io_for_flush_and_compaction(self.inner,
-                                                                            enabled as c_uchar);
+            ffi::rocksdb_options_set_use_direct_io_for_flush_and_compaction(
+                self.inner,
+                enabled as c_uchar,
+            );
         }
     }
 
@@ -487,7 +496,8 @@ impl Options {
     /// let mut opts = Options::default();
     /// opts.set_allow_os_buffer(false);
     /// ```
-    #[deprecated(since="0.7.0", note="replaced with set_use_direct_reads/set_use_direct_io_for_flush_and_compaction methods")]
+    #[deprecated(since = "0.7.0",
+                 note = "replaced with set_use_direct_reads/set_use_direct_io_for_flush_and_compaction methods")]
     pub fn set_allow_os_buffer(&mut self, is_allow: bool) {
         self.set_use_direct_reads(!is_allow);
         self.set_use_direct_io_for_flush_and_compaction(!is_allow);
