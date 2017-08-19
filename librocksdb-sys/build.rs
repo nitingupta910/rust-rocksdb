@@ -107,6 +107,7 @@ fn build_rocksdb() {
 
     config.file("build_version.cc");
 
+    config.warnings(false);
     config.cpp(true);
     config.compile("librocksdb.a");
 }
@@ -127,6 +128,8 @@ fn build_snappy() {
     config.file("snappy/snappy.cc");
     config.file("snappy/snappy-sinksource.cc");
     config.file("snappy/snappy-c.cc");
+
+    config.warnings(false);
     config.cpp(true);
     config.compile("libsnappy.a");
 }
