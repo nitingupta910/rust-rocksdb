@@ -30,6 +30,21 @@
 //!  db.delete(b"my key").unwrap();
 //! ```
 //!
+//! Opening a database and a single column family with custom options:
+//!
+//! ```
+//! use rocksdb::{DB, ColumnFamilyDescriptor, Options};
+//! let mut cf_opts = Options::default();
+//! cf_opts.set_max_write_buffer_number(16);
+//! let cf = ColumnFamilyDescriptor::new("cf1", cf_opts);
+//!
+//! let mut db_opts = Options::default();
+//! db_opts.create_missing_column_families(true);
+//! db_opts.create_if_missing(true);
+//!
+//! let db = DB::open_cf_descriptors(&db_opts, "path/for/rocksdb/storage_with_cfs", vec![cf]).unwrap();
+//! ```
+//!
 
 extern crate libc;
 extern crate librocksdb_sys as ffi;
@@ -43,10 +58,13 @@ pub mod merge_operator;
 pub mod compaction_filter;
 mod db;
 mod db_options;
+mod slice_transform;
 
-pub use db::{DBCompactionStyle, DBCompressionType, DBIterator, DBRawIterator, DBRecoveryMode,
-             DBVector, ReadOptions, Direction, IteratorMode, Snapshot, WriteBatch,
-             new_bloom_filter};
+pub use compaction_filter::Decision as CompactionDecision;
+pub use db::{new_bloom_filter, DBCompactionStyle, DBCompressionType, DBIterator, DBRawIterator,
+             DBRecoveryMode, DBVector, Direction, IteratorMode, ReadOptions, Snapshot, WriteBatch};
+
+pub use slice_transform::SliceTransform;
 
 pub use merge_operator::MergeOperands;
 use std::collections::BTreeMap;
@@ -61,6 +79,14 @@ pub struct DB {
     inner: *mut ffi::rocksdb_t,
     cfs: BTreeMap<String, ColumnFamily>,
     path: PathBuf,
+}
+
+/// A descriptor for a RocksDB column family.
+///
+/// A description of the column family, containing the name and `Options`.
+pub struct ColumnFamilyDescriptor {
+    name: String,
+    options: Options,
 }
 
 /// A simple wrapper round a string, used for errors reported from
@@ -183,9 +209,4 @@ pub struct FlushOptions {
 #[derive(Copy, Clone)]
 pub struct ColumnFamily {
     inner: *mut ffi::rocksdb_column_family_handle_t,
-}
-
-pub struct ColumnFamilyDescriptor {
-    name: &'static str,
-    options: Options,
 }

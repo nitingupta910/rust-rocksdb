@@ -1,6 +1,9 @@
 extern crate cc;
+extern crate bindgen;
 
+use std::env;
 use std::fs;
+use std::path::PathBuf;
 
 fn link(name: &str, bundled: bool) {
     use std::env::var;
@@ -26,10 +29,21 @@ fn fail_on_empty_directory(name: &str) {
     }
 }
 
-fn build_rocksdb() {
-    println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=rocksdb/");
+fn bindgen_rocksdb() {
+    let bindings = bindgen::Builder::default()
+        .header("rocksdb/include/rocksdb/c.h")
+        .hide_type("max_align_t") // https://github.com/rust-lang-nursery/rust-bindgen/issues/550
+        .ctypes_prefix("libc")
+        .generate()
+        .expect("unable to generate rocksdb bindings");
 
+    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+    bindings
+        .write_to_file(out_path.join("bindings.rs"))
+        .expect("unable to write rocksdb bindings");
+}
+
+fn build_rocksdb() {
     let mut config = cc::Build::new();
     config.include("rocksdb/include/");
     config.include("rocksdb/");
@@ -80,8 +94,8 @@ fn build_rocksdb() {
             .cloned()
             .filter(|file| match *file {
                 "port/port_posix.cc" |
-                "util/env_posix.cc" |
-                "util/io_posix.cc" => false,
+                "env/env_posix.cc" |
+                "env/io_posix.cc" => false,
                 _ => true,
             })
             .collect::<Vec<&'static str>>();
@@ -98,6 +112,9 @@ fn build_rocksdb() {
         config.flag("-EHsc");
     } else {
         config.flag("-std=c++11");
+        // this was breaking the build on travis due to
+        // > 4mb of warnings emitted.
+        config.flag("-Wno-unused-parameter");
     }
 
     for file in lib_sources {
@@ -134,9 +151,32 @@ fn build_snappy() {
     config.compile("libsnappy.a");
 }
 
+fn try_to_find_and_link_lib(lib_name: &str) -> bool {
+    if let Ok(lib_dir) = env::var(&format!("{}_LIB_DIR", lib_name)) {
+        println!("cargo:rustc-link-search=native={}", lib_dir);
+        let mode = match env::var_os(&format!("{}_STATIC", lib_name)) {
+            Some(_) => "static",
+            None => "dylib",
+        };
+        println!("cargo:rustc-link-lib={}={}", mode, lib_name.to_lowercase());
+        return true;
+    }
+    false
+}
+
 fn main() {
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=rocksdb/");
+    println!("cargo:rerun-if-changed=snappy/");
+
     fail_on_empty_directory("rocksdb");
     fail_on_empty_directory("snappy");
-    build_rocksdb();
-    build_snappy();
+    bindgen_rocksdb();
+
+    if !try_to_find_and_link_lib("ROCKSDB") {
+        build_rocksdb();
+    }
+    if !try_to_find_and_link_lib("SNAPPY") {
+        build_snappy();
+    }
 }
